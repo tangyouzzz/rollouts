@@ -244,6 +244,14 @@ func (m *canaryReleaseManager) doCanaryFinalising(c *RolloutContext) (bool, erro
 		return false, err
 	}
 	tr := newTrafficRoutingContext(c)
+	// 5. delete batchRelease crd
+	done, err = m.removeBatchRelease(c)
+	if err != nil {
+		klog.Errorf("rollout(%s/%s) Finalize batchRelease failed: %s", c.Rollout.Namespace, c.Rollout.Name, err.Error())
+		return false, err
+	} else if !done {
+		return false, nil
+	}
 	// 2. remove stable service the pod revision selector, so stable service will be selector all version pods.
 	done, err := m.trafficRoutingManager.FinalisingTrafficRouting(tr, true)
 	c.NewStatus.CanaryStatus.LastUpdateTime = tr.LastUpdateTime
@@ -261,14 +269,7 @@ func (m *canaryReleaseManager) doCanaryFinalising(c *RolloutContext) (bool, erro
 	if err != nil || !done {
 		return done, err
 	}
-	// 5. delete batchRelease crd
-	done, err = m.removeBatchRelease(c)
-	if err != nil {
-		klog.Errorf("rollout(%s/%s) Finalize batchRelease failed: %s", c.Rollout.Namespace, c.Rollout.Name, err.Error())
-		return false, err
-	} else if !done {
-		return false, nil
-	}
+
 	klog.Infof("rollout(%s/%s) doCanaryFinalising success", c.Rollout.Namespace, c.Rollout.Name)
 	return true, nil
 }
